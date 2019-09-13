@@ -26,6 +26,10 @@
 
 .RELEASENOTES 
 
+1.7? - 09/13/2019
+ -- MODIFIED BY Christian Geuer-Pollmann
+ -- Added support for Azure Managed Identity (Passing the `UseManagedIdentity` switch ignores any credentials)
+
 1.6 - 11/15/2018
  -- MODIFIED BY Alexander Zabielski
  -- Updated the parameters to accept a TenantID to pass to the connection params.
@@ -119,6 +123,9 @@
 
     See: https://github.com/Azure/azure-powershell/issues/2915
 
+.PARAMETER UseManagedIdentity
+
+    Optional. Switch to indicate to use a user-assigned or system-assigned managed identity. Only works on a VM running in Azure.
 
 .EXAMPLE
 
@@ -165,7 +172,7 @@ Param (
 
 # Automation Account
 [Parameter(Mandatory=$true)]
-[String] $AutomationAccountName ,
+[String] $AutomationAccountName,
 
 # Hyprid Group
 [Parameter(Mandatory=$true)]
@@ -173,9 +180,12 @@ Param (
 
 # Hyprid Group
 [Parameter(Mandatory=$false)]
-[PSCredential] $Credential
-)
+[PSCredential] $Credential,
 
+# Hyprid Group
+[Parameter(Mandatory=$false)]
+[Switch] $UseManagedIdentity
+)
 
 # Stop the script if any errors occur
 $ErrorActionPreference = "Stop"
@@ -219,22 +229,23 @@ foreach ($Module in $Modules) {
 
 # Connect to the current Azure account
 Write-Output "Pulling Azure account credentials..."
+if ($UseManagedIdentity) {
+    # VM must have proper managed identiy assigned
+    Write-Output "Connecting with managed identity"
+    $null = Add-AzureRmAccount -Identity 
+} else {
+    $paramsplat = @{}
+    if ($Credential) {
+        $paramsplat.Credential = $Credential
+    }
+    if($TenantID) {
+        $paramsplat.TenantId = $TenantID
+    }
 
-# Login to Azure account
-$paramsplat = @{}
-
-if ($Credential) {
-    $paramsplat.Credential = $Credential
+    Write-Output "Connecting with the Following Parameters"
+    Write-Output $paramsplat
+    $null = Add-AzureRmAccount @paramsplat
 }
-
-if($TenantID) {
-    $paramsplat.TenantId = $TenantID
-}
-
-Write-Output "Connecting with the Following Parameters"
-Write-Output $paramsplat
-
-$Account = Add-AzureRmAccount @paramsplat 
 
 # Get a reference to the current subscription
 #$Subscription = Get-AzureRmSubscription -SubscriptionId $SubscriptionID
